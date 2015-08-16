@@ -1,4 +1,5 @@
-activator-akka-scala-seed
+Akka Concurrency
 =========================
 
-A minimal seed template for an Akka with Scala build 
+works with typesafe activator
+
