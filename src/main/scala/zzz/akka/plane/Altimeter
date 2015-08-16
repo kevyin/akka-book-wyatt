@@ -1,0 +1,12 @@
+package zzz.akka.avionics
+
+// Imports to help us create Actors, plus logging
+import akka.actor.{Props, Actor, ActorSystem, ActorLogging}
+// The duration package object extends Ints with some
+// timing functionality
+import scala.concurrent.duration._
+object Altimeter {
+// Sent to the Altimeter to inform it about
+// rate-of-climb changes
+case class RateChange(amount: Float)
+}
