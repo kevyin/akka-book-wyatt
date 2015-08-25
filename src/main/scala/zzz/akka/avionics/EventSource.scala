@@ -13,7 +13,11 @@ object EventSource {
 }
 
 trait EventSource {
-  this: Actor =>
+  def sendEvent[T](event: T): Unit
+  def eventSourceReceive: Actor.Receive
+}
+
+trait ProductionEventSource extends EventSource { this: Actor =>
 
   import EventSource._
 
