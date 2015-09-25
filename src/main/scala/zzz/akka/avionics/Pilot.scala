@@ -16,6 +16,8 @@ object Pilots {
 
   case object ReadyToGo
 
+  case class Controls(controlSurfaces: ActorRef)
+
   case object RelinquishControl
 
 }
@@ -52,5 +54,14 @@ class CoPilot extends Actor {
     case ReadyToGo =>
       pilot = context.actorFor("../" + pilotName)
       autopilot = context.actorFor("../AutoPilot")
+  }
+}
+
+class AutoPilot extends Actor {
+  import Pilots._
+
+  def receive = {
+    case ReadyToGo =>
+
   }
 }

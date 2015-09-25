@@ -4,8 +4,6 @@ package zzz.akka.avionics
  * Kevin Ying 2015
  */
 
-package zzz.akka.avionics
-
 import akka.actor.{Actor, ActorRef, Props}
 
 // The Lead is going to construct its own subordinates.
