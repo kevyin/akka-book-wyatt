@@ -2,6 +2,12 @@ package zzz.akka.avionics
 
 import akka.actor.{Props, Actor, ActorLogging}
 import zzz.akka.avionics.LeadFlightAttendant
+import scala.concurrent.Await
+import zzz.akka.avionics.IsolatedLifeCycleSupervisor.WaitForStart
+import akka.util.Timeout
+import akka.pattern.ask
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.Duration
 
 object Plane {
 
@@ -16,25 +22,65 @@ object Plane {
 // build the Altimeter
 
 class Plane extends Actor with ActorLogging {
+  this: AltimeterProvider
+        with PilotProvider
+        with LeadFlightAttendantProvider =>
+
   import Altimeter._
   import Plane._
   import EventSource._
 
   val cfgstr = "zzz.akka.avionics.flightcrew"
-  val altimeter = context.actorOf(
+  override val altimeter = context.actorOf(
     Props(Altimeter()), "Altimeter")
-  val controls = context.actorOf(
-    Props(new ControlSurfaces(altimeter)), "ControlSurfaces")
+  val controls = context.actorOf(Props(new ControlSurfaces(altimeter)), "ControlSurfaces")
   val config = context.system.settings.config
-  val pilot = context.actorOf(Props[Pilot],
+  override val pilot = context.actorOf(Props[Pilot],
     config.getString(s"$cfgstr.pilotName"))
-  val copilot = context.actorOf(Props[CoPilot],
+  override val copilot = context.actorOf(Props[CoPilot],
     config.getString(s"$cfgstr.copilotName"))
-  val autopilot = context.actorOf(
+  override val autopilot = context.actorOf(
     Props[AutoPilot], "AutoPilot")
   val flightAttendant = context.actorOf(
     Props(LeadFlightAttendant()),
     config.getString(s"$cfgstr.leadAttendantName"))
+
+  // There's going to be a couple of asks below and
+  // a timeout is necessary for that.
+  implicit val askTimeout = Timeout(1, TimeUnit.SECONDS)
+  def startEquipment() {
+    val controls = context.actorOf(
+      Props(new IsolatedResumeSupervisor
+        with OneForOneStrategyFactory {
+        def childStarter() {
+          val alt = context.actorOf(
+            Props(new Altimeter with ProductionEventSource), "Altimeter")
+          // These children get implicitly added to the
+          // hierarchy
+          context.actorOf(Props(new AutoPilot), "AutoPilot")
+          context.actorOf(Props(new ControlSurfaces(alt)),
+            "ControlSurfaces")
+        }
+      }), "Equipment")
+    Await.result(controls ? WaitForStart, Duration(1, TimeUnit.SECONDS))
+  }
+
+  def startPeople() {
+    val people = context.actorOf(
+      Props(new IsolatedStopSupervisor
+        with OneForOneStrategyFactory {
+        def childStarter() {
+          // These children get implicitly added to
+          // the hierarchy
+          context.actorOf(Props(new Pilot), pilotName)
+          context.actorOf(Props(new CoPilot), copilotName)
+        }
+      }), "Pilots")
+    // Use the default strategy here, which
+    // restarts indefinitely
+    context.actorOf(Props(newFlightAttendant), attendantName)
+    Await.result(people ? WaitForStart, 1.second)
+  }
 
   override def preStart() {
     // Register ourself with the Altimeter to receive updates

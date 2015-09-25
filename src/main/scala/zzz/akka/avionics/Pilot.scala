@@ -52,6 +52,9 @@ class CoPilot extends Actor {
     "zzz.akka.avionics.flightcrew.pilotName")
   def receive = {
     case ReadyToGo =>
+      context.parent ! Plane.GiveMeControl
+      copilot = context.actorFor("../" + copilotName)
+
       pilot = context.actorFor("../" + pilotName)
       autopilot = context.actorFor("../AutoPilot")
   }

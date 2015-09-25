@@ -9,6 +9,10 @@ import akka.actor.{Actor, ActorLogging}
 
 import scala.concurrent.duration._
 
+trait AltimeterProvider {
+  def altimeter: Actor = new Altimeter with ProductionEventSource
+}
+
 object Altimeter {
 
   // Sent to the Altimeter to inform it about
