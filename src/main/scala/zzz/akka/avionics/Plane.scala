@@ -1,7 +1,7 @@
 package zzz.akka.avionics
 
 import akka.actor.{Props, Actor, ActorLogging}
-import zzz.akka.avionics.LeadFlightAttendant
+//import zzz.akka.avionics.LeadFlightAttendant
 import scala.concurrent.Await
 import zzz.akka.avionics.IsolatedLifeCycleSupervisor.WaitForStart
 import akka.util.Timeout
@@ -31,19 +31,26 @@ class Plane extends Actor with ActorLogging {
   import EventSource._
 
   val cfgstr = "zzz.akka.avionics.flightcrew"
-  override val altimeter = context.actorOf(
+  override val newAltimeter = context.actorOf(
     Props(Altimeter()), "Altimeter")
-  val controls = context.actorOf(Props(new ControlSurfaces(altimeter)), "ControlSurfaces")
+  val controls = context.actorOf(Props(new ControlSurfaces(newAltimeter)), "ControlSurfaces")
   val config = context.system.settings.config
-  override val pilot = context.actorOf(Props[Pilot],
+  override val newPilot = context.actorOf(Props[Pilot],
     config.getString(s"$cfgstr.pilotName"))
-  override val copilot = context.actorOf(Props[CoPilot],
+  override val newCoPilot = context.actorOf(Props[CoPilot],
     config.getString(s"$cfgstr.copilotName"))
-  override val autopilot = context.actorOf(
+  override val newAutoPilot = context.actorOf(
     Props[AutoPilot], "AutoPilot")
   val flightAttendant = context.actorOf(
     Props(LeadFlightAttendant()),
     config.getString(s"$cfgstr.leadAttendantName"))
+
+  override def preStart() {
+    // Register ourself with the Altimeter to receive updates
+    // on our altitude
+    newAltimeter ! EventSource.RegisterListener(self)
+    List(newPilot, newCoPilot) foreach { _ ! Pilots.ReadyToGo }
+  }
 
   // There's going to be a couple of asks below and
   // a timeout is necessary for that.
@@ -66,6 +73,9 @@ class Plane extends Actor with ActorLogging {
   }
 
   def startPeople() {
+    val plane = self
+
+
     val people = context.actorOf(
       Props(new IsolatedStopSupervisor
         with OneForOneStrategyFactory {
@@ -80,13 +90,6 @@ class Plane extends Actor with ActorLogging {
     // restarts indefinitely
     context.actorOf(Props(newFlightAttendant), attendantName)
     Await.result(people ? WaitForStart, 1.second)
-  }
-
-  override def preStart() {
-    // Register ourself with the Altimeter to receive updates
-    // on our altitude
-    altimeter ! EventSource.RegisterListener(self)
-    List(pilot, copilot) foreach { _ ! Pilots.ReadyToGo }
   }
 
   def receive = {

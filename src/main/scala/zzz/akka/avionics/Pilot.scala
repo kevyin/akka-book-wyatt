@@ -7,9 +7,9 @@ package zzz.akka.avionics
 import akka.actor.{Actor, ActorRef}
 
 trait PilotProvider {
-  def pilot: Actor = new Pilot
-  def copilot: Actor = new CoPilot
-  def autopilot: Actor = new AutoPilot
+  def newPilot: Actor = new Pilot
+  def newCoPilot: Actor = new CoPilot
+  def newAutoPilot: Actor = new AutoPilot
 }
 
 object Pilots {
@@ -52,9 +52,6 @@ class CoPilot extends Actor {
     "zzz.akka.avionics.flightcrew.pilotName")
   def receive = {
     case ReadyToGo =>
-      context.parent ! Plane.GiveMeControl
-      copilot = context.actorFor("../" + copilotName)
-
       pilot = context.actorFor("../" + pilotName)
       autopilot = context.actorFor("../AutoPilot")
   }

@@ -40,9 +40,7 @@ trait IsolatedLifeCycleSupervisor extends Actor {
   def childStarter(): Unit
 
   // Only start the children when we're started
-  final override def preStart() {
-    childStarter()
-  }
+  final override def preStart() { childStarter() }
 
   // Don't call preStart(), which would be the
   // default behaviour

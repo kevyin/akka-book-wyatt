@@ -10,7 +10,7 @@ import akka.actor.{Actor, ActorLogging}
 import scala.concurrent.duration._
 
 trait AltimeterProvider {
-  def altimeter: Actor = new Altimeter with ProductionEventSource
+  def newAltimeter: Actor = new Altimeter with ProductionEventSource
 }
 
 object Altimeter {
