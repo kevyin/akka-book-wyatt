@@ -31,25 +31,36 @@ class Plane extends Actor with ActorLogging {
   import EventSource._
 
   val cfgstr = "zzz.akka.avionics.flightcrew"
-  override val newAltimeter = context.actorOf(
-    Props(Altimeter()), "Altimeter")
-  val controls = context.actorOf(Props(new ControlSurfaces(newAltimeter)), "ControlSurfaces")
+//  override val newAltimeter = context.actorOf(
+//    Props(Altimeter()), "Altimeter")
+//  val controls = context.actorOf(Props(new ControlSurfaces(newAltimeter), "ControlSurfaces")
   val config = context.system.settings.config
-  override val newPilot = context.actorOf(Props[Pilot],
-    config.getString(s"$cfgstr.pilotName"))
-  override val newCoPilot = context.actorOf(Props[CoPilot],
-    config.getString(s"$cfgstr.copilotName"))
-  override val newAutoPilot = context.actorOf(
-    Props[AutoPilot], "AutoPilot")
+  val pilotName = config.getString(s"$cfgstr.pilotName")
+  val copilotName = config.getString(s"$cfgstr.copilotName")
+  val attendantName = config.getString(s"$cfgstr.leadAttendantName")
+//  override val newPilot = context.actorOf(Props[Pilot],
+//    config.getString(s"$cfgstr.pilotName"))
+//  override val newCoPilot = context.actorOf(Props[CoPilot],
+//    config.getString(s"$cfgstr.copilotName"))
+//  override val newAutopilot = context.actorOf(
+//    Props[AutoPilot], "AutoPilot")
   val flightAttendant = context.actorOf(
     Props(LeadFlightAttendant()),
     config.getString(s"$cfgstr.leadAttendantName"))
 
+  // Helps us look up Actors within the "Pilots" Supervisor
+  def actorForPilots(name: String) =
+    context.actorFor("Pilots/" + name)
   override def preStart() {
-    // Register ourself with the Altimeter to receive updates
-    // on our altitude
-    newAltimeter ! EventSource.RegisterListener(self)
-    List(newPilot, newCoPilot) foreach { _ ! Pilots.ReadyToGo }
+    import EventSource.RegisterListener
+    import Pilots.ReadyToGo
+    // Get our children going. Order is important here.
+    startEquipment()
+    startPeople()
+    // Bootstrap the system
+    actorForControls("Altimeter") ! RegisterListener(self)
+    actorForPilots(pilotName) ! ReadyToGo
+    actorForPilots(copilotName) ! ReadyToGo
   }
 
   // There's going to be a couple of asks below and
@@ -61,10 +72,10 @@ class Plane extends Actor with ActorLogging {
         with OneForOneStrategyFactory {
         def childStarter() {
           val alt = context.actorOf(
-            Props(new Altimeter with ProductionEventSource), "Altimeter")
+            Props(newAltimeter), "Altimeter")
           // These children get implicitly added to the
           // hierarchy
-          context.actorOf(Props(new AutoPilot), "AutoPilot")
+          context.actorOf(Props(newAutopilot), "AutoPilot")
           context.actorOf(Props(new ControlSurfaces(alt)),
             "ControlSurfaces")
         }
@@ -72,30 +83,50 @@ class Plane extends Actor with ActorLogging {
     Await.result(controls ? WaitForStart, Duration(1, TimeUnit.SECONDS))
   }
 
+  // Helps us look up Actors within the "Equipment" Supervisor
+  def actorForControls(name: String) =
+    context.actorFor("Equipment/" + name)
+
   def startPeople() {
     val plane = self
-
-
+    // Note how we depend on the Actor structure beneath
+    // us here by using actorFor(). This should be
+    // resilient to change, since we'll probably be the
+    // ones making the changes
+    val controls = actorForControls("ControlSurfaces")
+    val autopilot = actorForControls("AutoPilot")
+    val altimeter = actorForControls("Altimeter")
     val people = context.actorOf(
       Props(new IsolatedStopSupervisor
         with OneForOneStrategyFactory {
         def childStarter() {
-          // These children get implicitly added to
-          // the hierarchy
-          context.actorOf(Props(new Pilot), pilotName)
-          context.actorOf(Props(new CoPilot), copilotName)
+          // These children get implicitly added
+          // to the hierarchy
+          context.actorOf(
+            Props(newCoPilot(plane, autopilot, altimeter)),
+            copilotName)
+          context.actorOf(
+            Props(newPilot(plane, autopilot,
+              controls, altimeter)),
+            pilotName)
         }
       }), "Pilots")
     // Use the default strategy here, which
     // restarts indefinitely
-    context.actorOf(Props(newFlightAttendant), attendantName)
-    Await.result(people ? WaitForStart, 1.second)
+    context.actorOf(Props(newLeadFlightAttendant), attendantName)
+    Await.result(people ? WaitForStart, Duration(1, TimeUnit.SECONDS))
   }
+
+
+//    val leadAttendantName = context.system.settings.config.getString(
+//      "zzz.akka.avionics.flightcrew.leadAttendantName")
+
 
   def receive = {
     case AltitudeUpdate(altitude) =>
       log info(s"Altitude is now: $altitude")
     case GiveMeControl =>
+      val controls = actorForControls("ControlSurfaces")
       log info ("Plane giving control.")
       sender ! controls
   }
