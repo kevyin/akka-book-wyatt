@@ -44,7 +44,8 @@ class Altimeter extends Actor with ActorLogging {
         if (roc == 0)
           throw new ArithmeticException("Divide by zero")
         val alt = ((tick - lastTick) / 60000.0) *
-          (roc * roc) / roc
+            roc
+//          (roc * roc) / roc
         sender ! AltitudeCalculated(tick, alt)
     }
   }), "AltitudeCalculator")
@@ -97,12 +98,9 @@ class Altimeter extends Actor with ActorLogging {
     case Tick =>
       val tick = System.currentTimeMillis
       altitudeCalculator ! CalculateAltitude(lastTick, tick, rateOfClimb)
+      altitude = altitude + ((tick - lastTick) / 60000.0) *
+        rateOfClimb
       lastTick = tick
-
-    // The calculator has successfully calculated a new
-    // altitude and we can now deal with it
-    case AltitudeCalculated(tick, altdelta) =>
-      altitude += altdelta
       sendEvent(AltitudeUpdate(altitude))
   }
 
