@@ -2,7 +2,8 @@ package zzz.akka.avionics
 
 // Imports to help us create Actors, plus logging
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.SupervisorStrategy.Restart
+import akka.actor.{OneForOneStrategy, Props, Actor, ActorLogging}
 
 // The duration package object extends Ints with some
 // timing functionality
@@ -26,10 +27,34 @@ object Altimeter {
 
 }
 
+
 class Altimeter extends Actor with ActorLogging {
   this: EventSource =>
 
   import Altimeter._
+
+  case class CalculateAltitude(lastTick: Long,
+                               tick: Long, roc: Double)
+  case class AltitudeCalculated(newTick: Long,
+                                altitude: Double)
+
+  val altitudeCalculator = context.actorOf(Props(new Actor {
+    def receive = {
+      case CalculateAltitude(lastTick, tick, roc) =>
+        if (roc == 0)
+          throw new ArithmeticException("Divide by zero")
+        val alt = ((tick - lastTick) / 60000.0) *
+          (roc * roc) / roc
+        sender ! AltitudeCalculated(tick, alt)
+    }
+  }), "AltitudeCalculator")
+
+  // Keep restarting without limit
+  override val supervisorStrategy =
+    OneForOneStrategy(-1, Duration.Inf) {
+      case _ => Restart
+    }
+
 
   // We need an "ExecutionContext" for the scheduler.
   // Actor's dispatcher can serve that purpose.
@@ -71,9 +96,13 @@ class Altimeter extends Actor with ActorLogging {
     // Calculate a new altitude
     case Tick =>
       val tick = System.currentTimeMillis
-      altitude = altitude + ((tick - lastTick) / 60000.0) *
-        rateOfClimb
+      altitudeCalculator ! CalculateAltitude(lastTick, tick, rateOfClimb)
       lastTick = tick
+
+    // The calculator has successfully calculated a new
+    // altitude and we can now deal with it
+    case AltitudeCalculated(tick, altdelta) =>
+      altitude += altdelta
       sendEvent(AltitudeUpdate(altitude))
   }
 
