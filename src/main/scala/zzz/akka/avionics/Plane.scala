@@ -79,7 +79,7 @@ class Plane extends Actor with ActorLogging {
             Props(newAltimeter), "Altimeter")
           // These children get implicitly added to the
           // hierarchy
-          context.actorOf(Props(newAutopilot(self)), "AutoPilot")
+          context.actorOf(Props(newAutoPilot(self)), "AutoPilot")
           context.actorOf(Props(new ControlSurfaces(alt)),
             "ControlSurfaces")
         }

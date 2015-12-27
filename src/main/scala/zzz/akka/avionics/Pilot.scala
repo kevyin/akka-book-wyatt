@@ -15,7 +15,7 @@ trait PilotProvider {
   def newCoPilot(plane: ActorRef,
                  autopilot: ActorRef,
                  altimeter: ActorRef): Actor = new CoPilot(plane, autopilot, altimeter)
-  def newAutopilot(plane: ActorRef): Actor = new AutoPilot(plane)
+  def newAutoPilot(plane: ActorRef): Actor = new AutoPilot(plane)
 }
 
 object Pilots {
