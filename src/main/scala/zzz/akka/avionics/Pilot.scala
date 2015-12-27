@@ -10,12 +10,12 @@ import zzz.akka.avionics.Plane.{RequestCoPilot, GiveMeControl}
 trait PilotProvider {
   def newPilot(plane: ActorRef,
                  autopilot: ActorRef,
-                 controls: ActorRef,
-                 altimeter: ActorRef): Actor = new Pilot(plane, autopilot, controls, altimeter)
+                 controls: ActorRef ): Actor = new Pilot(plane, autopilot, controls)
   def newCoPilot(plane: ActorRef,
                  autopilot: ActorRef,
-                 altimeter: ActorRef): Actor = new CoPilot(plane, autopilot, altimeter)
-  def newAutoPilot(plane: ActorRef): Actor = new AutoPilot(plane)
+                 controls: ActorRef): Actor = new CoPilot(plane, autopilot, controls)
+  def newAutoPilot(plane: ActorRef,
+                  controls: ActorRef): Actor = new AutoPilot(plane, controls)
 }
 
 object Pilots {
@@ -32,8 +32,7 @@ object Pilots {
 
 class Pilot(plane: ActorRef,
              autopilot: ActorRef,
-             var controls: ActorRef,
-             altimeter: ActorRef) extends Actor {
+             var controls: ActorRef) extends Actor {
 
   import Pilots._
 
@@ -54,9 +53,8 @@ class Pilot(plane: ActorRef,
 
 class CoPilot(plane: ActorRef,
              autoPilot: ActorRef,
-             altimeter: ActorRef) extends Actor {
+             var controls: ActorRef) extends Actor {
   import Pilots._
-  var controls: ActorRef = context.system.deadLetters
   var pilot: ActorRef = context.system.deadLetters
   var autopilot: ActorRef = context.system.deadLetters
   val pilotName = context.system.settings.config.getString(
@@ -67,13 +65,19 @@ class CoPilot(plane: ActorRef,
       pilot = context.actorFor("../" + pilotName)
       autopilot = context.actorFor("../AutoPilot")
       context.watch(pilot)
+
+    case Controls(controlSurfaces) =>
+      controls = controlSurfaces
+
     case Terminated(_) =>
       // Pilot died
       plane ! GiveMeControl
+
   }
 }
 
-class AutoPilot(plane: ActorRef) extends Actor {
+class AutoPilot(plane: ActorRef,
+               var controls: ActorRef) extends Actor {
   import Pilots._
 
   def receive = {
@@ -82,6 +86,9 @@ class AutoPilot(plane: ActorRef) extends Actor {
 
     case CoPilotReference(copilot) =>
       context.watch(copilot)
+
+    case Controls(controlSurfaces) =>
+      controls = controlSurfaces
 
     case Terminated(_) =>
       // CoPilot died

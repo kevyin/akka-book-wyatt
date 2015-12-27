@@ -26,6 +26,7 @@ object Plane {
 
 class Plane extends Actor with ActorLogging {
   this: AltimeterProvider
+        with HeadingIndicatorProvider
         with PilotProvider
         with LeadFlightAttendantProvider =>
 
@@ -77,10 +78,12 @@ class Plane extends Actor with ActorLogging {
         def childStarter() {
           val alt = context.actorOf(
             Props(newAltimeter), "Altimeter")
+          val head = context.actorOf(
+            Props(newHeadingIndicator), "HeadingIndicator")
           // These children get implicitly added to the
           // hierarchy
-          context.actorOf(Props(newAutoPilot(self)), "AutoPilot")
-          context.actorOf(Props(new ControlSurfaces(alt)),
+          context.actorOf(Props(newAutoPilot(self, context.parent)), "AutoPilot")
+          context.actorOf(Props(new ControlSurfaces(alt, head)),
             "ControlSurfaces")
         }
       }), "Equipment")
@@ -99,7 +102,6 @@ class Plane extends Actor with ActorLogging {
     // ones making the changes
     val controls = actorForControls("ControlSurfaces")
     val autopilot = actorForControls("AutoPilot")
-    val altimeter = actorForControls("Altimeter")
     val people = context.actorOf(
       Props(new IsolatedStopSupervisor
         with OneForOneStrategyFactory {
@@ -107,11 +109,11 @@ class Plane extends Actor with ActorLogging {
           // These children get implicitly added
           // to the hierarchy
           context.actorOf(
-            Props(newCoPilot(plane, autopilot, altimeter)),
+            Props(newCoPilot(plane, autopilot, controls)),
             copilotName)
           context.actorOf(
             Props(newPilot(plane, autopilot,
-              controls, altimeter)),
+              controls)),
             pilotName)
         }
       }), "Pilots")

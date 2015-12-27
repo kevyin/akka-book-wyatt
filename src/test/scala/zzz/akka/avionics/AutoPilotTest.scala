@@ -33,12 +33,14 @@ with MustMatchers {
   import CoPilotsSpec._
   import Plane._
 
+  def nilActor: ActorRef = TestProbe().ref
+
   // These paths are going to prove useful
   val autopilotPath = s"/user/$autopilotName"
 
   def autopilotsReadyToGo(): ActorRef = {
     val a = system.actorOf(
-      Props(new AutoPilot(testActor)), autopilotName)
+      Props(new AutoPilot(testActor, nilActor)), autopilotName)
     a
   }
 

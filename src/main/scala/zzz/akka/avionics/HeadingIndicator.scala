@@ -3,6 +3,10 @@ package zzz.akka.avionics
 import akka.actor.{Actor, ActorLogging}
 import scala.concurrent.duration._
 
+trait HeadingIndicatorProvider {
+  def newHeadingIndicator: Actor = new HeadingIndicator with ProductionEventSource
+}
+
 object HeadingIndicator {
   // Indicates that something has changed how fast
   // we're changing direction
