@@ -85,7 +85,7 @@ class Plane extends Actor with ActorLogging {
           // These children get implicitly added to the
           // hierarchy
           context.actorOf(Props(newAutoPilot(self, context.parent)), "AutoPilot")
-          context.actorOf(Props(new ControlSurfaces(alt, head)),
+          context.actorOf(Props(new ControlSurfaces(self, alt, head)),
             "ControlSurfaces")
         }
       }), "Equipment")
