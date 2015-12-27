@@ -102,6 +102,8 @@ class Plane extends Actor with ActorLogging {
     // us here by using actorFor(). This should be
     // resilient to change, since we'll probably be the
     // ones making the changes
+    val heading = actorForControls("HeadingIndicator")
+    val altimeter = actorForControls("Altimeter")
     val controls = actorForControls("ControlSurfaces")
     val autopilot = actorForControls("AutoPilot")
     val people = context.actorOf(
@@ -115,7 +117,7 @@ class Plane extends Actor with ActorLogging {
             copilotName)
           context.actorOf(
             Props(newPilot(plane, autopilot,
-              controls)),
+              heading, altimeter)),
             pilotName)
         }
       }), "Pilots")

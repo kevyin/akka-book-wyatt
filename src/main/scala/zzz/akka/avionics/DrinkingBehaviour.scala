@@ -1,8 +1,21 @@
 package zzz.akka.avionics
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{Props, Actor, ActorRef}
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+
+trait DrinkingProvider {
+  def newDrinkingBehaviour(drinker: ActorRef): Props =
+    Props(DrinkingBehaviour(drinker))
+}
+
+trait FlyingProvider {
+  def newFlyingBehaviour(plane: ActorRef,
+                         heading: ActorRef,
+                         altimeter: ActorRef): Props =
+    Props(new FlyingBehaviour(plane, heading, altimeter))
+}
 
 object DrinkingBehaviour {
   // Internal message indicating that the blood alcohol
@@ -69,3 +82,4 @@ class DrinkingBehaviour(drinker: ActorRef) extends Actor {
       else FeelingLikeZaphod)
   }
 }
+

@@ -59,6 +59,9 @@ object FlyingBehaviour {
     else StickLeft((amount / dur) * -1)
   }
 
+  case class NewElevatorCalculator(f: Calculator)
+  case class NewBankCalculator(f: Calculator)
+
 }
 
 class FlyingBehaviour(plane: ActorRef,
@@ -155,6 +158,10 @@ class FlyingBehaviour(plane: ActorRef,
           headingSinceMS = currentMS))
     case Event(Adjust, flightData: FlightData) =>
       stay using adjust(flightData)
+    case Event(NewBankCalculator(f), d: FlightData) =>
+      stay using d.copy(bankCalc = f)
+    case Event(NewElevatorCalculator(f), d: FlightData) =>
+      stay using d.copy(elevCalc = f)
   }
 
   onTransition {
