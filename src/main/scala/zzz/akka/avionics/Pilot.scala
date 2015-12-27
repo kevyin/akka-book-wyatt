@@ -4,7 +4,8 @@ package zzz.akka.avionics
  * Kevin Ying 2015
  */
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{Terminated, Actor, ActorRef}
+import zzz.akka.avionics.Plane.GiveMeControl
 
 trait PilotProvider {
   def newPilot(plane: ActorRef,
@@ -13,7 +14,7 @@ trait PilotProvider {
                  altimeter: ActorRef): Actor = new Pilot(plane, autopilot, controls, altimeter)
   def newCoPilot(plane: ActorRef,
                  autopilot: ActorRef,
-                 altimeter: ActorRef): Actor = new CoPilot
+                 altimeter: ActorRef): Actor = new CoPilot(plane, autopilot, altimeter)
   def newAutopilot: Actor = new AutoPilot
 }
 
@@ -49,17 +50,26 @@ class Pilot(plane: ActorRef,
   }
 }
 
-class CoPilot extends Actor {
+class CoPilot(plane: ActorRef,
+             autoPilot: ActorRef,
+             altimeter: ActorRef) extends Actor {
   import Pilots._
   var controls: ActorRef = context.system.deadLetters
   var pilot: ActorRef = context.system.deadLetters
   var autopilot: ActorRef = context.system.deadLetters
   val pilotName = context.system.settings.config.getString(
+
     "zzz.akka.avionics.flightcrew.pilotName")
   def receive = {
     case ReadyToGo =>
       pilot = context.actorFor("../" + pilotName)
       autopilot = context.actorFor("../AutoPilot")
+      context.watch(pilot)
+    case Terminated(_) =>
+      // Pilot died
+      val plane = context.parent
+//      val plane = context.actorFor("Plane")
+      plane ! GiveMeControl
   }
 }
 
