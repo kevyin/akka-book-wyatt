@@ -67,8 +67,6 @@ class CoPilot(plane: ActorRef,
       context.watch(pilot)
     case Terminated(_) =>
       // Pilot died
-      val plane = context.parent
-//      val plane = context.actorFor("Plane")
       plane ! GiveMeControl
   }
 }
