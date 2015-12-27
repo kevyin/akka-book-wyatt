@@ -17,6 +17,8 @@ object Plane {
   // asks for them
   case object GiveMeControl
 
+  case object LostControl
+
   case object RequestCoPilot
 }
 
