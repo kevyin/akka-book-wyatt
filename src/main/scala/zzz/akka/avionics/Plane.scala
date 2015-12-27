@@ -1,6 +1,8 @@
 package zzz.akka.avionics
 
 import akka.actor.{Props, Actor, ActorLogging}
+import zzz.akka.avionics.Pilots.{Controls, CoPilotReference}
+
 //import zzz.akka.avionics.LeadFlightAttendant
 import scala.concurrent.Await
 import zzz.akka.avionics.IsolatedLifeCycleSupervisor.WaitForStart
@@ -15,6 +17,7 @@ object Plane {
   // asks for them
   case object GiveMeControl
 
+  case object RequestCoPilot
 }
 
 // We want the Plane to own the Altimeter and we're going to
@@ -61,6 +64,7 @@ class Plane extends Actor with ActorLogging {
     actorForControls("Altimeter") ! RegisterListener(self)
     actorForPilots(pilotName) ! ReadyToGo
     actorForPilots(copilotName) ! ReadyToGo
+    actorForControls("AutoPilot") ! ReadyToGo
   }
 
   // There's going to be a couple of asks below and
@@ -75,7 +79,7 @@ class Plane extends Actor with ActorLogging {
             Props(newAltimeter), "Altimeter")
           // These children get implicitly added to the
           // hierarchy
-          context.actorOf(Props(newAutopilot), "AutoPilot")
+          context.actorOf(Props(newAutopilot(self)), "AutoPilot")
           context.actorOf(Props(new ControlSurfaces(alt)),
             "ControlSurfaces")
         }
@@ -128,7 +132,10 @@ class Plane extends Actor with ActorLogging {
     case GiveMeControl =>
       val controls = actorForControls("ControlSurfaces")
       log info ("Plane giving control.")
-      sender ! controls
+      sender ! Controls(controls)
+    case RequestCoPilot =>
+      val coPilot = actorForPilots(copilotName)
+      sender ! CoPilotReference(coPilot)
   }
 }
 

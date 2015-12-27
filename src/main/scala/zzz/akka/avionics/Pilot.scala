@@ -5,7 +5,7 @@ package zzz.akka.avionics
  */
 
 import akka.actor.{Terminated, Actor, ActorRef}
-import zzz.akka.avionics.Plane.GiveMeControl
+import zzz.akka.avionics.Plane.{RequestCoPilot, GiveMeControl}
 
 trait PilotProvider {
   def newPilot(plane: ActorRef,
@@ -15,7 +15,7 @@ trait PilotProvider {
   def newCoPilot(plane: ActorRef,
                  autopilot: ActorRef,
                  altimeter: ActorRef): Actor = new CoPilot(plane, autopilot, altimeter)
-  def newAutopilot: Actor = new AutoPilot
+  def newAutopilot(plane: ActorRef): Actor = new AutoPilot(plane)
 }
 
 object Pilots {
@@ -25,6 +25,8 @@ object Pilots {
   case class Controls(controlSurfaces: ActorRef)
 
   case object RelinquishControl
+
+  case class CoPilotReference(coPilot: ActorRef)
 
 }
 
@@ -71,11 +73,18 @@ class CoPilot(plane: ActorRef,
   }
 }
 
-class AutoPilot extends Actor {
+class AutoPilot(plane: ActorRef) extends Actor {
   import Pilots._
 
   def receive = {
     case ReadyToGo =>
+      val copilot = plane ! RequestCoPilot
 
+    case CoPilotReference(copilot) =>
+      context.watch(copilot)
+
+    case Terminated(_) =>
+      // CoPilot died
+      plane ! GiveMeControl
   }
 }
