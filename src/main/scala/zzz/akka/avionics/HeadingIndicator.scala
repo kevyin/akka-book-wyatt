@@ -11,7 +11,7 @@ object HeadingIndicator {
   // Indicates that something has changed how fast
   // we're changing direction
   case class BankChange(amount: Float)
-  case class BankChangOffset(amount: Float)
+  case class BankChangeOffset(amount: Float)
   // The event published by the HeadingIndicator to
   // listeners that want to know where we're headed
   case class HeadingUpdate(heading: Float)
@@ -53,7 +53,7 @@ trait HeadingIndicator extends Actor with ActorLogging {
       // Send the HeadingUpdate event to our listeners
       sendEvent(HeadingUpdate(heading))
 
-    case BankChangOffset(amount) =>
+    case BankChangeOffset(amount) =>
       rateOfBankOffset = amount
 
   }
