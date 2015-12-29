@@ -20,6 +20,8 @@ object Altimeter {
   // rate-of-climb changes
   case class RateChange(amount: Float)
 
+  case class RateChangeOffset(amount: Float)
+
   // Sent by the Altimeter at regular intervals
   case class AltitudeUpdate(altitude: Double)
 
@@ -101,6 +103,9 @@ class Altimeter extends Actor with ActorLogging {
         rateOfClimb
       lastTick = tick
       sendEvent(AltitudeUpdate(altitude))
+
+    case RateChangeOffset(amount) =>
+      rateOfClimb = rateOfClimb + amount.min(1.0f).max(-1.0f) * maxRateOfClimb
   }
 
   def receive = eventSourceReceive orElse altimeterReceive

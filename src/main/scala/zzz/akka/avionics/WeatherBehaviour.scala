@@ -7,37 +7,42 @@ object WeatherBehaviour {
 
   sealed trait State
 
-  case object LeftWind extends State
-
-  case object RightWind extends State
-
-  case object UpWind extends State
-
-  case object DownWind extends State
+  case object Windy extends State
 
   case object Idle extends State
 
-  case class WindOffset(alt: Double, head: Float)
+  case class WindyOffset(alt: Double, head: Float)
+
+  case class WindChanged(alt: Double, head: Float)
 
   sealed trait Data
 
-  case class WindData(wind: WindOffset) extends Data
+  case class WeatherData(controls: ActorRef,
+                         wind: WindyOffset) extends Data
 
 }
 
-class WeatherBehaviour(plane: ActorRef) extends Actor
+trait WeatherResolution {
+  import scala.util.Random
+  def windInterval(): FiniteDuration = Random.nextInt(300).seconds
+}
+
+class WeatherBehaviour(alt: ActorRef) extends Actor
   with FSM[WeatherBehaviour.State, WeatherBehaviour.Data] {
+  this: WeatherResolution =>
   import WeatherBehaviour._
 
-  when(Idle) {
-    // chance of direction change
-    transform {
-      case _ =>
-        goto (Idle)
-    } using {
-      case s =>
-        s.copy(stateName = LeftWind)
-    }
+  // Just provides shorter access to the scheduler
+  val scheduler = context.system.scheduler
+
+  def windChange() = scheduler.scheduleOnce(windInterval(),
+    self, WindChanged(0,0.005f))
+
+  onTransition {
+    case _ -> Windy =>
+      windChange()
+      plane ! Windy
   }
+
 
 }
