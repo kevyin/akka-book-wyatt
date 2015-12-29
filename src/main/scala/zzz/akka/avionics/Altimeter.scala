@@ -72,6 +72,7 @@ class Altimeter extends Actor with ActorLogging {
   // The varying rate of climb depending on the movement of
   // the stick
   var rateOfClimb = 0f
+  var rateOfClimbOffset = 0f
   // Our current altitude
   var altitude = 0d
   // As time passes, we need to change the altitude based on
@@ -93,7 +94,7 @@ class Altimeter extends Actor with ActorLogging {
     case RateChange(amount) =>
       // Truncate the range of 'amount' to [-1, 1]
       // before multiplying
-      rateOfClimb = amount.min(1.0f).max(-1.0f) * maxRateOfClimb
+      rateOfClimb = (amount + rateOfClimbOffset).min(1.0f).max(-1.0f) * maxRateOfClimb
       log info (s"Altimeter changed rate of climb to $rateOfClimb.")
     // Calculate a new altitude
     case Tick =>
@@ -105,7 +106,7 @@ class Altimeter extends Actor with ActorLogging {
       sendEvent(AltitudeUpdate(altitude))
 
     case RateChangeOffset(amount) =>
-      rateOfClimb = rateOfClimb + amount.min(1.0f).max(-1.0f) * maxRateOfClimb
+      rateOfClimbOffset = amount
   }
 
   def receive = eventSourceReceive orElse altimeterReceive
