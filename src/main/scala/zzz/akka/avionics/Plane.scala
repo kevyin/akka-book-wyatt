@@ -30,6 +30,7 @@ class Plane extends Actor with ActorLogging {
   this: AltimeterProvider
         with HeadingIndicatorProvider
         with PilotProvider
+        with WeatherBehaviourProvider
         with LeadFlightAttendantProvider =>
 
   import Altimeter._
@@ -87,6 +88,8 @@ class Plane extends Actor with ActorLogging {
           context.actorOf(Props(newAutoPilot(self, context.parent)), "AutoPilot")
           context.actorOf(Props(new ControlSurfaces(self, alt, head)),
             "ControlSurfaces")
+          context.actorOf(newWeatherBehaviour(alt, head),
+            "WeatherBehaviour")
         }
       }), "Equipment")
     Await.result(controls ? WaitForStart, Duration(1, TimeUnit.SECONDS))

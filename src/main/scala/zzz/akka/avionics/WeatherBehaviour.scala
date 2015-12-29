@@ -1,9 +1,14 @@
 package zzz.akka.avionics
 
-import akka.actor.{FSM, Actor, ActorRef}
+import akka.actor.{Props, FSM, Actor, ActorRef}
 import zzz.akka.avionics.Altimeter.RateChangeOffset
 import zzz.akka.avionics.HeadingIndicator.BankChangeOffset
 import scala.concurrent.duration._
+
+trait WeatherBehaviourProvider {
+  def newWeatherBehaviour(altimeter: ActorRef, heading: ActorRef): Props =
+    Props(WeatherBehaviour(altimeter, heading))
+}
 
 object WeatherBehaviour {
 
@@ -23,6 +28,10 @@ object WeatherBehaviour {
                          headingIndicator: ActorRef,
                          wind: WindyOffset) extends Data
 
+  // Factory method to instantiate it with the production
+  // timer resolution
+  def apply(altimeter: ActorRef, heading: ActorRef) =
+    new WeatherBehaviour(altimeter, heading) with WeatherResolution
 }
 
 trait WeatherResolution {
@@ -30,7 +39,7 @@ trait WeatherResolution {
   def windInterval(): FiniteDuration = Random.nextInt(300).seconds
 }
 
-class WeatherBehaviour(heading: ActorRef, altimeter: ActorRef) extends Actor
+class WeatherBehaviour(altimeter: ActorRef, heading: ActorRef) extends Actor
   with FSM[WeatherBehaviour.State, WeatherBehaviour.Data] {
   this: WeatherResolution =>
 
@@ -63,17 +72,16 @@ class WeatherBehaviour(heading: ActorRef, altimeter: ActorRef) extends Actor
 
   when(Idle) {
     case Event(StartWeather, _) =>
-      goto(Windy) using WeatherData(heading, altimeter, WindyOffset(0, 0))
+      goto(Windy) using WeatherData(altimeter, heading, WindyOffset(0, 0))
 
   }
 
   onTransition {
     case Idle -> Windy =>
-      setTimer("ApplyWeather", ApplyWeather, 600.milliseconds,
+      setTimer("ApplyWeather", ApplyWeather, 300.milliseconds,
         repeat = true)
-      setTimer("ChangeWeather", WindChange, 800.milliseconds,
+      setTimer("ChangeWeather", WindChange, windInterval(),
         repeat = true)
-//      windChange()
 
     case Windy -> Idle =>
       cancelTimer("ApplyWeather")
